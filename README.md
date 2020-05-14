@@ -64,7 +64,7 @@ Here we added 3 node labels:
 
 We will this mapping for LoB -> Projects -> Nodes
 
-![](./images/mapping.png)
+![](./images/mapping1.png)
 
 ### Projects
 
