@@ -1,9 +1,12 @@
 # Chargeback
 
-Infrastructure groups within organizations generally group users under the Lines of Businesses they belong to for charge-back. Existing chargeback models are generally built on Virtual Machine (VM) usage pools where VM's are allocated to LoBs on-demand and usage is based on resource consumption over a period of time.
+Infrastructure groups within organizations generally group users under the Lines of Businesses (LoBs) they belong to for charge-back. Existing chargeback models are generally built on Virtual Machine (VM) usage pools where VM's are allocated to LoBs on-demand and usage is based on resource consumption over a period of time.
 
 We will cover this in 4 sections:
 
+- [How to charge](#how-to-charge)
+- [What to charge](#what-to-charge)
+- [Entity resource consumption](#entity-resource-consumption)
 - [Limiting LoBs to VMs](#limiting-lobs-to-vms)
   - [Topology](#topology)
   - [Node Labels](#node-labels)
@@ -11,12 +14,89 @@ We will cover this in 4 sections:
   - [Projects](#projects)
   - [Groups](#groups)
   - [RBAC](#rbac)
+  - [Hybrid Chargeback Model](#hybrid-chargeback-model)
   - [Testing](#testing)
   - [Admission controllers (optional)](#admission-controllers-optional)
-  - [Resource Quotas (optional but recommended)](#resource-quotas-optional-but-recommended)
-- [OpenShift Metering](#openshift-metering)
 - [zVM Monitoring](#zvm-monitoring)
-- [Combining metrics](#combining-metrics)
+
+## How to charge
+
+In situations where guaranteed SLA's are required (production), it makes sense to devote entire nodes to LoBs. This does come at the cost of under utilization/less density and LoBs paying for resources they might not entirely consume. As with any decision in the IT world,, this is an engineering trade-off. OpenShift provides a mechanism to limit LoB's to VMs and details are covered under the [Limiting LoBs to VMs](#limiting-lobs-to-vms) section below.
+
+The second situation is where LoBs do not need SLAs but just need a location to run/test workloads at lowest cost. This is where pod/namespace/project specific chargeback can be performed. This is covered in the [Entity resource consumption](#entity-resource-consumption) section.
+
+Ideally, an infrastructure provider group within an organization can provide both the above options and let LoBs decide which mechanism makes sense e.g Node based for prof and perf testing, namespace/project/pod (granular) based for dev/test/qa/sandbox environments. This solution is detailed in the [Hybrid Chargeback (ideal)](#hybrid-chargeback-ideal) section.
+
+## What to charge
+
+Typically organizations will charge for:
+
+- Software Licensing
+- CPU Capacity consumed
+- Memory utilization
+- Storage consumption
+- Network
+- Floor Space
+- Power
+- Human Resources
+
+This can be a mix of constant baseline + amortized and utilization cost. Depending on the hardware consumed, chargeback for an on-premise cloud can be significantly cheaper than public cloud and even within on-premise infrastructure choices, options like IBM's LinuxONE can be much cheaper than Intel/AMD based options.
+
+## Entity resource consumption
+
+OpenShift entities include pods, deployments, namespaces, persistent volume claims etc. Chargeback on these entities is the easiest mechanism as it is inbuilt into OpenShift as part of the `metering` component
+
+As LoBs will have namespaces (or clusters, depending on the multi-tenancy model) for specific use-cases, we will look at chargeback using Namespaces using the inbuilt metering capabilities.
+
+- CPU (request, usage and utilization)
+- Memory (request, usage and utilization)
+- Storage (i.e persistent volume claim, request and usage)
+
+The `oc -n openshift-metering get reportqueries` command returns a list of what can be queried including cluster-wide reporting, node-wide, namespace-wide and the more granular pod and PVC consumption. Limiting ourselves to just namespaces here:
+
+```
+...
+namespace-cpu-request
+namespace-cpu-usage
+namespace-cpu-utilization
+namespace-memory-request
+namespace-memory-usage
+namespace-memory-utilization
+namespace-persistentvolumeclaim-request
+namespace-persistentvolumeclaim-usage
+...
+```
+
+You can start metering with a `Report` custom resource. For scheduled report's, it will look something like this:
+
+```yaml
+apiVersion: metering.openshift.io/v1
+kind: Report
+metadata:
+  name: pod-cpu-request-hourly
+spec:
+  query: "pod-cpu-monthly"
+  reportingStart: "2020-05-05T00:00:00Z"
+  schedule:
+    period: "monthly"
+    monthly:
+      dayOfMonth: 1
+      hour: 0
+      minute: 0
+      second: 0
+```
+
+They have the following rules:
+
+|    Name    | Data Type |                     Range                     |
+| :--------: | :-------: | :-------------------------------------------: |
+|    hour    |  Integer  |                     0-23                      |
+|   minute   |  Integer  |                     0-59                      |
+|   second   |  Integer  |                     0-59                      |
+| dayOfWeek  |  String   | day of week spelled out (e.g monday, tuesday) |
+| dayOfMonth |  Integer  |                     1-31                      |
+
+More information about reports can be found [here](https://docs.openshift.com/container-platform/4.2/metering/reports/metering-about-reports.html#metering-reports_metering-about-reports).
 
 ## Limiting LoBs to VMs
 
@@ -159,6 +239,10 @@ We'll focus on user roles and not service accounts for this tutorial.
 
 Users from each LoB will now have the ability to deploy pods only to the Projects their LoB has access to.
 
+### Hybrid Chargeback Model
+
+![](images/hybrid.png)
+
 ### Testing
 
 RBAC has no default way to list which namespaces a user has access to, but we can write a simple script to do this:
@@ -170,29 +254,13 @@ for n in $(oc get ns -o jsonpath='{.items[*].metadata.name}'); do
 done
 ```
 
-Lets try to deploy apps simulating users in each LoB:
-
-//WIP
+Simple testing can be done using the `--as` parameter to the `oc` cli (docs [here](https://www.openshift.com/blog/oc-command-newbies)).
 
 ### Admission controllers (optional)
 
 > Another mechanism to enforce node selections for namespaces is to use `Admission Controllers`. This is a bit of a sledgehammer, as there are easier, less operationally invasive ways to do this above, but we mention it here for completeness.
 
-WIP
-
-### Resource Quotas (optional but recommended)
-
-WIP
-
-## OpenShift Metering
-
-WIP
-
 ## zVM Monitoring
-
-WIP
-
-## Combining metrics
 
 WIP
 
