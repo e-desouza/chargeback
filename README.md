@@ -1,23 +1,23 @@
 # Chargeback
 
-Infrastructure groups within organizations generally group users under the Lines of Businesses (LoBs) they belong to for charge-back. Existing chargeback models are generally built on Virtual Machine (VM) usage pools where VM's are allocated to LoBs on-demand and usage is based on resource consumption over a period of time.
+Infrastructure groups within organizations generally group users under the Lines of Businesses (LoBs) they belong to for charge-back. Existing chargeback models are generally built on Virtual Machine (VM) usage pools where VM's are allocated to LoBs on-demand and usage is based on resource consumption over a period of time. With the density and multi-tennancy offered through cloud native technology like OpenShift, depending on a VM based changeback alone is insufficient. This article will cover several design points around how to deal with chargeback in an organization adopting OpenShift as their enterprise PaaS strategy.
 
-We will cover this in 4 sections:
+We will cover this in the following sections:
 
-- [How to charge](#how-to-charge)
-- [What to charge](#what-to-charge)
-- [Entity resource consumption](#entity-resource-consumption)
-- [Limiting LoBs to VMs](#limiting-lobs-to-vms)
-  - [Topology](#topology)
-  - [Node Labels](#node-labels)
-  - [Mapping](#mapping)
-  - [Projects](#projects)
-  - [Groups](#groups)
-  - [RBAC](#rbac)
-  - [Hybrid Chargeback Model](#hybrid-chargeback-model)
-  - [Testing](#testing)
-  - [Admission controllers (optional)](#admission-controllers-optional)
-- [zVM Monitoring](#zvm-monitoring)
+- [Chargeback](#chargeback)
+  - [How to charge](#how-to-charge)
+  - [What to charge](#what-to-charge)
+  - [Entity resource consumption](#entity-resource-consumption)
+  - [Limiting LoBs to VMs](#limiting-lobs-to-vms)
+    - [Topology](#topology)
+    - [Node Labels](#node-labels)
+    - [Mapping](#mapping)
+    - [Projects](#projects)
+    - [Groups](#groups)
+    - [RBAC](#rbac)
+    - [Hybrid Chargeback Model](#hybrid-chargeback-model)
+    - [Testing](#testing)
+    - [Admission controllers (optional)](#admission-controllers-optional)
 
 ## How to charge
 
@@ -138,7 +138,7 @@ Here we added 3 node labels:
 
 > Labels must have singular values for each key so pick only one of each option when applying it to a node.
 
-> The `beta.kubernetes.io/arch: amd64`, `kubernetes.io/arch: amd64` and `arch: amd64` are pre-existing labels. These are really important for multi-arch deployments, which will be a future article. Assume `arch: s390x`, `beta.kubernetes.io/arch: s390x`, `kubernetes.io/arch: s390x` for the remainder of this article - architecture is irrelevant as this article is valid for any architecture.
+> The `beta.kubernetes.io/arch: s390x`, `kubernetes.io/arch: s390x` and `arch: s390x` are pre-existing labels. These are really important for multi-arch deployments, which will be a future article. Architecture is irrelevant as this article is valid for any architecture, but its an important label if architecture specific chargeback is the goal.
 
 ### Mapping
 
@@ -156,8 +156,6 @@ Next, we create the 5 Projects in the diagram [above](#mapping):
 - lob3-app2
 
 Each LoB can own multiple apps and each app will typically have a Project. It is also possible to have a LoB as a Project, and apps as deployments within that LoB but it would offer less granular control. Having each app as a Project makes it easier to map resources to individual apps, which can be consolidated for an LoB.
-
-![](./images/namespaces.png) // FIXME
 
 You could also use [Namespace](https://docs.openshift.com/container-platform/4.3/applications/projects/working-with-projects.html) to do this but Projects are just k8s namespaces with additional annotations that allow for easier multi-tenancy by:
 
@@ -258,12 +256,6 @@ Simple testing can be done using the `--as` parameter to the `oc` cli (docs [her
 
 ### Admission controllers (optional)
 
-> Another mechanism to enforce node selections for namespaces is to use `Admission Controllers`. This is a bit of a sledgehammer, as there are easier, less operationally invasive ways to do this above, but we mention it here for completeness.
+Another mechanism to enforce node selections for namespaces is to use `Admission Controllers`. This is a bit of a sledgehammer, as there are easier, less operationally invasive ways to do this above, but we mention it here for completeness. The methods mentioned above are far more flexible and light weight.
 
-## zVM Monitoring
-
-WIP
-
-In future we will cover how this can be done using RH Cost Management for clusters with internet connectivity:
-
-<img src=https://access.redhat.com/webassets/avalon/d/OpenShift_Container_Platform-4.4-Using_cost_models-en-US/images/9cee7f0c1a9e46fa6ebab07a0713ef0e/costmodel-workflow.png></img>
+If you liked this article and would like to try OpenShift-as-a-Service for free, IBM offers [free credits](https://www.ibm.com/ca-en/cloud/openshift) for OpenShift on x86_64 based architectures. If you'd like to try  OpenShift on the IBM LinuxONE architec
